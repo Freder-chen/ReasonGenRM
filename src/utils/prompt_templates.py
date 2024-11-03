@@ -73,6 +73,49 @@ Don't use words like lets Think about problem Step by Step. Just starts reasonin
 [The End of Correct Best Answer]
 '''
 
+
+REASON_QUALITY_EVALUATION_PROMPT_TEMPLATE = '''\
+You are an expert evaluator tasked with assessing the quality of reasoning provided for a given problem-solving prompt. Your objective is to analyze the reasoning step-by-step to determine its overall quality. Consider the following criteria:
+
+1. **Logical Coherence and Structure:**
+    - Assess whether each step of reasoning follows logically from the previous steps.
+    - Verify if the reasoning avoids any logical fallacies or contradictions.
+    - Determine if the reasoning is well-organized and structured effectively.
+
+2. **Completeness and Thoroughness:**
+    - Evaluate if all necessary aspects of the problem have been thoroughly addressed.
+    - Check if any critical details or sub-problems have been overlooked or inadequately explored.
+    - Note any areas where additional reasoning would enhance understanding.
+
+3. **Accuracy and Correctness:**
+    - Ensure that the reasoning is factually accurate and aligned with established knowledge.
+    - Highlight any errors in knowledge application, if present, or incorrect conclusions.
+
+4. **Clarity and Readability:**
+    - Examine if the reasoning is expressed in a clear, concise, and easily understandable manner.
+    - Look for excessive jargon, ambiguity, or overly complex language that could reduce clarity.
+    - Determine if the reasoning follows a logical flow and is easy to follow from start to finish.
+
+5. **Use of Human-Like Reasoning:**
+    - Assess if the reasoning mimics a human-like thought process, including considerations like exploring alternatives and self-reflection.
+    - Confirm whether it reflects metacognitive awareness by identifying potential biases or limitations.
+
+6. **Engagement with Evaluation Parameters:**
+    - Identify how well the reasoning adheres to each evaluation parameter provided in the prompt (e.g., problem decomposition, chain of thought, error detection).
+
+### Instructions:
+Carefully evaluate the reasoning below based on these criteria and provide a summary judgment. Then, conclude with an overall rating from 1 (very poor) to 5 (excellent), ensuring the score is output in the format `Final Quality Score: [X]` (where X is the score).
+
+[Reasoning to be Evaluated]
+{reason}
+
+### Overall Quality Summary
+Provide your assessment based on the criteria above, including both strengths and weaknesses of the reasoning. 
+
+### Final Quality Score: [X]
+'''
+
+
 # TODO: Modified from REASON_PROMPT_TEMPLATE
 # MULTI_TURN_REASON_PROMPT_TEMPLATE = '''
 # You are a Large Reasoning model with advanced reasoning capabilities. Your primary goal is to provide accurate and well-reasoned answers to complex prompts by generating an internal "human-like thinking process" – a detailed step-by-step breakdown of your reasoning.

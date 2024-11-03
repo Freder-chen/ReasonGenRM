@@ -8,33 +8,33 @@ export HF_ENDPOINT=https://hf-mirror.com
 export HF_HUB_ENABLE_HF_TRANSFER=1
 
 # Qwen2.5-7B-ReasonRM
-dataset_name_or_path="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2-Qwen2.5-14B-Instruct.jsonl"
-dataset_disk_path="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2-Reason"
+dataset_name_or_path="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2/taged.jsonl"
+dataset_disk_path="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2/sft_disk"
 model_name_or_path="Qwen/Qwen2.5-7B-Instruct"
 exp_outdir="${WORK_DIR}/exp/Qwen2.5-7B-ReasonRM"
 deepspeed_config="${WORK_DIR}/deepspeed_config/ds_z2_config.json"
 
 # # Qwen2.5-7B-ReasonRM-wGen
-# dataset1="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2-Qwen2.5-14B-Instruct.jsonl"
+# dataset1="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2/taged.jsonl"
 # dataset2="KingNish/reasoning-base-20k"
 # dataset_name_or_path="${dataset1} ${dataset2}"
-# dataset_disk_path="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2-Reason-wGeneralData"
+# dataset_disk_path="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2/sft_dist_with_general_data"
 # model_name_or_path="Qwen/Qwen2.5-7B-Instruct"
 # exp_outdir="${WORK_DIR}/exp/Qwen2.5-7B-ReasonRM-wGen"
 # deepspeed_config="${WORK_DIR}/deepspeed_config/ds_z2_config.json"
 
 # # Qwen2.5-14B-ReasonRM
-# dataset_name_or_path="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2-Qwen2.5-14B-Instruct.jsonl"
+# dataset_name_or_path="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2/taged.jsonl"
 # dataset_disk_path="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2-Reason"
 # model_name_or_path="Qwen/Qwen2.5-14B-Instruct"
 # exp_outdir="${WORK_DIR}/exp/Qwen2.5-14B-ReasonRM"
 # deepspeed_config="${WORK_DIR}/deepspeed_config/ds_z3_config.json"
 
 # # Qwen2.5-14B-ReasonRM-wGen
-# dataset1="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2-Qwen2.5-14B-Instruct.jsonl"
+# dataset1="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2/taged.jsonl"
 # dataset2="KingNish/reasoning-base-20k"
 # dataset_name_or_path="${dataset1} ${dataset2}"
-# dataset_disk_path="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2-Reason-wGeneralData"
+# dataset_disk_path="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2/sft_dist_with_general_data"
 # model_name_or_path="Qwen/Qwen2.5-14B-Instruct"
 # exp_outdir="${WORK_DIR}/exp/Qwen2.5-14B-ReasonRM-wGen"
 # deepspeed_config="${WORK_DIR}/deepspeed_config/ds_z3_config.json"
@@ -42,7 +42,7 @@ deepspeed_config="${WORK_DIR}/deepspeed_config/ds_z2_config.json"
 
 if [ ! -d "${dataset_disk_path}" ]; then
     # Note: Quality of generated results decreases significantly for inputs exceeding 6k tokens
-    python ${WORK_DIR}/src/process_reasoning_dataset.py \
+    python ${WORK_DIR}/src/tokenize_reasoning_dataset.py \
         --max_tokens 6144 \
         --dataset_paths ${dataset_name_or_path} \
         --model_path ${model_name_or_path} \
@@ -54,11 +54,11 @@ accelerate launch ${WORK_DIR}/src/train_reasoning_sft.py \
     --model_name_or_path ${model_name_or_path} \
     --dataset_name ${dataset_disk_path} \
     --learning_rate 5.0e-6 \
-    --num_train_epochs 1.1 \
+    --num_train_epochs 2 \
     --max_seq_length 32768 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 32 \
-    --warmup_ratio 0.03 \
+    --warmup_ratio 0.05 \
     --gradient_checkpointing \
     --attn_implementation flash_attention_2 \
     --torch_dtype bfloat16 \

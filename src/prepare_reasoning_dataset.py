@@ -2,11 +2,11 @@ import os
 import json
 import random
 import argparse
-import datasets
-import requests
-from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
+import asyncio
+import aiohttp
+import aiofiles
+from tqdm.asyncio import tqdm
+from datasets import load_dataset
 from utils.prompt_templates import CRITIC_PROMPT_TEMPLATE, REASON_PROMPT_TEMPLATE
 
 
@@ -23,141 +23,121 @@ def parse_args():
     return parser.parse_args()
 
 
-def fetch_chat(content, args):
+async def fetch_response(session, prompt, args):
     """
-    Send a chat request to the server and return the response content.
+    Asynchronously send a request to the server and get the response.
     """
     data = {
         "model": args.model_name,
         "messages": [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": content},
+            {"role": "user", "content": prompt},
         ],
         "temperature": args.temperature,
         "top_p": args.top_p,
         "repetition_penalty": args.repetition_penalty
     }
     try:
-        response = requests.post(args.server_url, headers={"Content-Type": "application/json"}, data=json.dumps(data))
-        response.raise_for_status()
-        return response.json()['choices'][0]['message']['content']
-    except requests.exceptions.RequestException as e:
-        print(f"Error: {e}")
+        async with session.post(args.server_url, json=data) as response:
+            response.raise_for_status()
+            result = await response.json()
+            return result['choices'][0]['message']['content']
+    except Exception as e:
+        print(f"Request error: {e}")
         return None
 
 
-def save_jsonl_item(data, filename):
-    """
-    Append a single JSON object as a new line to a JSONL file.
-    """
-    with open(filename, 'a', encoding='utf-8') as f:
-        f.write(json.dumps(data, ensure_ascii=False) + '\n')
-
-
-def check_item_validity(item):
+def is_valid_item(item):
     """
     Check if the dataset item is valid based on the structure of the chosen and rejected messages.
     Return True if valid, False otherwise.
     """
-    chosen_messages = item['chosen']
-    rejected_messages = item['rejected']
+    chosen = item['chosen']
+    rejected = item['rejected']
 
-    # Ensure valid structure with exactly two parts: user message and assistant response
-    if len(chosen_messages) != 2 or len(rejected_messages) != 2:
+    if len(chosen) != 2 or len(rejected) != 2:
         return False
-
-    # Ensure user message is consistent and identical between chosen and rejected
-    if chosen_messages[0]['role'] != 'user' or rejected_messages[0]['role'] != 'user':
+    if chosen[0]['role'] != 'user' or rejected[0]['role'] != 'user':
         return False
-
-    # Ensure assistant response structure is valid
-    if chosen_messages[1]['role'] != 'assistant' or rejected_messages[1]['role'] != 'assistant':
+    if chosen[1]['role'] != 'assistant' or rejected[1]['role'] != 'assistant':
         return False
-
-    chosen_content = chosen_messages[0]['content']
-    rejected_content = rejected_messages[0]['content']
-
-    # Skip different user messages
-    if chosen_content != rejected_content:
+    if chosen[0]['content'] != rejected[0]['content']:
         return False
-
-    chosen_response = chosen_messages[1]['content']
-    rejected_response = rejected_messages[1]['content']
-
-    # Skip identical responses
-    if chosen_response == rejected_response:
+    if chosen[1]['content'] == rejected[1]['content']:
         return False
 
     return True
 
 
-def process_item(item, args):
+async def process_data_item(item, session, args):
     """
-    Process a single dataset item, comparing chosen and rejected messages,
-    generating reasoning, and saving the result.
+    Process a single dataset item: compare responses and generate reasoning.
     """
-    chosen_messages = item['chosen']
-    rejected_messages = item['rejected']
+    question = item['chosen'][0]['content']
+    chosen_response = item['chosen'][1]['content']
+    rejected_response = item['rejected'][1]['content']
 
-    assert len(chosen_messages) == len(rejected_messages) == 2
-
-    chosen_content = chosen_messages[0]['content']
-    chosen_response = chosen_messages[1]['content']
-    rejected_response = rejected_messages[1]['content']
-
-    # Prepare the prompts for comparison
-    results = []
-    random_choice = random.choice([True, False])
-    if random_choice:
+    # Randomly decide the order of responses
+    if random.choice([True, False]):
         prompt = CRITIC_PROMPT_TEMPLATE.format(
-            question=chosen_content,
+            question=question,
             response_a=chosen_response,
             response_b=rejected_response
         )
-        response = '[[A]]'
+        selected_response = '[[A]]'
     else:
         prompt = CRITIC_PROMPT_TEMPLATE.format(
-            question=chosen_content,
+            question=question,
             response_a=rejected_response,
             response_b=chosen_response
         )
-        response = '[[B]]'
+        selected_response = '[[B]]'
 
-    reason = fetch_chat(REASON_PROMPT_TEMPLATE.format(question=prompt, response=response), args)
+    # Generate reasoning
+    reason_prompt = REASON_PROMPT_TEMPLATE.format(question=prompt, response=selected_response)
+    reason = await fetch_response(session, reason_prompt, args)
     if reason:
-        results.append({'prompt': prompt, 'reason': reason, 'response': response})
+        return {'prompt': prompt, 'reason': reason, 'response': selected_response}
+    return None
 
-    return results
 
-
-def process_and_save(item, args):
+async def save_result(data, filename):
     """
-    Wrapper function to process an item and save the results.
+    Asynchronously save data as a line in a JSONL file.
     """
-    results = process_item(item, args)
-    if results:
-        for result in results:
-            save_jsonl_item(result, args.save_filename)
+    async with aiofiles.open(filename, 'a', encoding='utf-8') as f:
+        await f.write(json.dumps(data, ensure_ascii=False) + '\n')
 
 
-def main():
+async def process_and_save(item, args, session, semaphore):
+    """
+    Process an item asynchronously and save the result.
+    """
+    async with semaphore:
+        result = await process_data_item(item, session, args)
+        if result:
+            await save_result(result, args.save_filename)
+
+
+async def main():
     args = parse_args()
 
     # Load the dataset
-    dataset = datasets.load_dataset(args.dataset_dir, split='train')
+    dataset = load_dataset(args.dataset_dir, split='train')
 
-    # Filter out invalid items
-    valid_items = [item for item in dataset if check_item_validity(item)]
-    print(f"Number of skipped items: {len(dataset) - len(valid_items)}, Number of valid items: {len(valid_items)}")
+    # Filter valid items
+    valid_items = [item for item in dataset if is_valid_item(item)]
+    print(f"Total items: {len(dataset)}, Valid items: {len(valid_items)}")
 
+    # Ensure the directory exists
     os.makedirs(os.path.dirname(os.path.abspath(args.save_filename)), exist_ok=True)
 
-    # Use a thread pool to process items concurrently
-    with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
-        futures = [executor.submit(process_and_save, item, args) for item in valid_items]
-        for _ in tqdm(as_completed(futures), total=len(futures)):
-            pass  # Ensures that exceptions are raised if any
+    semaphore = asyncio.Semaphore(args.max_workers)
+    async with aiohttp.ClientSession() as session:
+        tasks = [process_and_save(item, args, session, semaphore) for item in valid_items]
+        for task in tqdm(asyncio.as_completed(tasks), total=len(tasks)):
+            await task
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
