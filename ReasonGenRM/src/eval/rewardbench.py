@@ -190,7 +190,7 @@ def process_example(tokenizer, example: Dict[str, str]) -> Dict[str, any]:
     return {'id': example['id'], 'subset': example['subset'], 'correct': final_correct}
 
 
-def process_dataset(tokenizer, dataset: "Dataset", max_workers=3) -> pd.DataFrame:
+def process_dataset(tokenizer, dataset, max_workers=3) -> pd.DataFrame:
     """
     Process the dataset using multithreading, returning a DataFrame of results.
     """
