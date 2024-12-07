@@ -55,7 +55,7 @@ class ScriptArguments:
     )
 
 
-async def chat(session: aiohttp.ClientSession, semaphore: asyncio.Semaphore, content: str) -> Optional[str]:
+async def chat(session: aiohttp.ClientSession, content: str) -> Optional[str]:
     """
     Send an asynchronous request to the server for chat completion, with a semaphore to limit concurrency.
     """
@@ -79,11 +79,11 @@ async def chat(session: aiohttp.ClientSession, semaphore: asyncio.Semaphore, con
         return None
 
 
-async def process_item(session: aiohttp.ClientSession, semaphore: asyncio.Semaphore, prompt: str) -> float:
+async def process_item(session: aiohttp.ClientSession, prompt: str) -> float:
     """
     Processes individual prompt and evaluates the response.
     """
-    response = await chat(session, semaphore, prompt)
+    response = await chat(session, prompt)
 
     matches = re.findall(r'\[\[(A|B)\]\]', response)
     if matches:
@@ -107,8 +107,8 @@ async def process_example(session: aiohttp.ClientSession, semaphore: asyncio.Sem
             response_b=example['chosen']
         )
 
-        correct1 = await process_item(session, semaphore, prompt1)
-        correct2 = await process_item(session, semaphore, prompt2)
+        correct1 = await process_item(session, prompt1)
+        correct2 = await process_item(session, prompt2)
         final_correct = (correct1 + (1 - correct2)) / 2.0  # Average accuracy
         return {'id': example['id'], 'subset': example['subset'], 'correct': final_correct}
 
@@ -153,14 +153,14 @@ def calculate_scores_per_section(example_counts: Dict[str, int], subset_mapping:
     return section_scores
 
 
-async def main_async(script_args: ScriptArguments):
+async def main_async(args: ScriptArguments):
     """
     Main asynchronous processing pipeline.
     """
-    semaphore = asyncio.Semaphore(script_args.max_workers)
+    semaphore = asyncio.Semaphore(args.max_workers)
 
     async with aiohttp.ClientSession() as session:
-        dataset = load_dataset(script_args.data_set_name, split='filtered', keep_in_memory=True)
+        dataset = load_dataset(args.data_set_name, split='filtered', keep_in_memory=True)
         df_results = await process_dataset(session, semaphore, dataset)
 
         # Define categories and counts
@@ -223,14 +223,14 @@ async def main_async(script_args: ScriptArguments):
         output += f"Avg Score: {avg_score:.2f}\n"
 
         print(output)
-        with open(script_args.record_filename, 'a') as f:
+        with open(args.record_filename, 'a') as f:
             f.write(output)
 
 
 def main():
     parser = HfArgumentParser(ScriptArguments)
-    script_args = parser.parse_args_into_dataclasses()[0]
-    asyncio.run(main_async(script_args))
+    args = parser.parse_args_into_dataclasses()[0]
+    asyncio.run(main_async(args))
 
 
 if __name__ == "__main__":

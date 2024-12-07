@@ -1,21 +1,21 @@
 #!/bin/bash
 
 SCRIPT_DIR="$(dirname "$0")"
-WORK_DIR="$(realpath "$SCRIPT_DIR")"
+WORK_DIR="$(realpath "$SCRIPT_DIR/../..")"
 
 export HF_ENDPOINT=https://hf-mirror.com
 export HF_HUB_ENABLE_HF_TRANSFER=1
 
-MODEL_NAME_OR_PATH="${WORK_DIR}/exp/Qwen2.5-7B-GenRM"
+MODEL_NAME_OR_PATH="${WORK_DIR}/exp/Qwen2.5-14B-GenRM"
 
 # Start vllm server in the background and redirect output to a log file
-CUDA_VISIBLE_DEVICES=0,1,2,3 \
+CUDA_VISIBLE_DEVICES=0,1 \
 nohup \
 python -m vllm.entrypoints.openai.api_server \
     --port 8009 \
     --served-model-name qwen2_instruct \
     --model ${MODEL_NAME_OR_PATH} \
-    --tensor-parallel-size 4 \
+    --tensor-parallel-size 2 \
     --gpu-memory-utilization 0.95 \
     --max-model-len 32768 \
     --max-num-batched-tokens 131072 \

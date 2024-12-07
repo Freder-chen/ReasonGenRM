@@ -72,7 +72,7 @@ def is_valid_item(item):
     return True
 
 
-async def process_data_item(item, session, args):
+async def process_data_item(item):
     """
     Process a single dataset item: compare responses and generate reasoning.
     """
@@ -112,9 +112,13 @@ async def process_and_save(item, args, session, semaphore):
     Process an item asynchronously and save the result.
     """
     async with semaphore:
-        result = await process_data_item(item, session, args)
+        result = await process_data_item(item)
         if result:
-            await save_result(result, args.save_filename)
+            data = {
+                'prompt': [{'role': 'user', 'content': result['prompt']}],
+                'response': [{ 'role': 'assistant', 'content': result['response']}]
+            }
+            await save_result(data, args.save_filename)
 
 
 async def main():
