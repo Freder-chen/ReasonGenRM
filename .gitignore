@@ -2,6 +2,8 @@
 exp/
 data/
 
+__pycache__/
+
 # Ignore compiled files
 *.obj
 *.exe
