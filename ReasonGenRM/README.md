@@ -20,9 +20,10 @@ To optimize the model’s reasoning and final output by maximizing:
 - Fluency and Relevance: $P(R \mid U)$ – promoting coherent reasoning.
 
 ### Optimal Reasoning Step
-The optimal reasoning step $R^*$ is derived as follows:
+The optimal reasoning step $R^\star$ is derived as follows:
+
 $$
-R^* = \arg\max_R P(A \mid U, R) \cdot P(R \mid U)
+R^\star = \arg\max_R P(A \mid U, R) \cdot P(R \mid U)
 $$
 
 ## Example Interaction
@@ -121,7 +122,7 @@ Conclusion:
 
 Reasoning quality and accuracy are model-dependent, with multiple valid reasoning chains ($R^*$) possible for a given user-assistant pair.
 
-TODO: It is necessary to supplement the reasoning experiments of Qwen2.5-72B-Instruct to verify whether FT training requires in-domain data or higher quality data.
+_TODO: It is necessary to supplement the reasoning experiments of Qwen2.5-72B-Instruct to verify whether FT training requires in-domain data or higher quality data._
 
 ### DPO for Alignment
 
@@ -134,6 +135,7 @@ DPO refines reasoning alignment by identifying:
 #### Refined Reward Function
 
 The reasoning score is defined as:
+
 $$
 R_{\text{score}} = 
 \begin{cases}
