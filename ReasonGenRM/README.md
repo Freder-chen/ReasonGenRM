@@ -129,14 +129,15 @@ _TODO: It is necessary to supplement the reasoning experiments of Qwen2.5-72B-In
 DPO refines reasoning alignment by identifying:
 1. **Best Reasoning ($R_{\text{best}}$):**
 
-   $$
-   R_{\text{best}} = \arg\max_R P(A \mid U, R) \cdot P(R \mid U)
-   $$
+$$
+R_{\text{best}} = \arg\max_R P(A \mid U, R) \cdot P(R \mid U)
+$$
+
 2. **Worst Reasoning ($R_{\text{worst}}$):**
 
-   $$
-   R_{\text{worst}} = \arg\min_R \Big(-(1 - P(A \mid U, R)) \cdot P(R \mid U)\Big)
-   $$
+$$
+R_{\text{worst}} = \arg\min_R \Big(-(1 - P(A \mid U, R)) \cdot P(R \mid U)\Big)
+$$
 
 #### Refined Reward Function
 
