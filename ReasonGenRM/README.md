@@ -5,6 +5,7 @@
 ## Core Concepts
 
 ### Reasoning-Driven Framework
+
 ReasonGenRM leverages Chain-of-Thought (CoT) reasoning to ensure the correctness and relevance of the reasoning step (`Reason`) as well as the final response (`Assistant`).
 
 1. **Intermediate Reasoning (`Reason`)**:
@@ -15,11 +16,14 @@ ReasonGenRM leverages Chain-of-Thought (CoT) reasoning to ensure the correctness
    - Delivers the ultimate answer based on the reasoning provided.
 
 ### Objective
+
 To optimize the model’s reasoning and final output by maximizing:
+
 - Effectiveness: $P(A \mid U, R)$ – ensuring accurate responses.
 - Fluency and Relevance: $P(R \mid U)$ – promoting coherent reasoning.
 
 ### Optimal Reasoning Step
+
 The optimal reasoning step $R^\star$ is derived as follows:
 
 $$
@@ -81,6 +85,7 @@ $$
 #### Experimental Insights
 
 ReasonGenRM demonstrates its effectiveness through experiments on the **Skywork-Reward-Preference-80K-v0.2** dataset. Results reveal:
+
 1. Different models prefer distinct reasoning chains.
 2. Larger models show enhanced reasoning capabilities.
 
@@ -94,6 +99,7 @@ The following results were obtained by applying different models to the same rea
 | **Qwen2.5-14B**  | 42,598 (55.49%) | 34,162       |
 
 Observations:
+
 1. Different models exhibit preferences for distinct reasoning chains.
 2. Larger models, such as **Qwen2.5-14B**, exhibit superior reasoning capabilities compared to smaller models. (**Qwen2.5-14B** remain more data than **LLaMA3.1-8B**, after filtering out samples with low $P(A|U,R)$.)
 
@@ -117,7 +123,6 @@ The following table summarizes results on **RewardBench**:
   | **Qwen2.5-7B-ReasonGenRM-sft**  |   Text Match   | 83.70  | 91.34  |   71.27   | 88.51  |   83.70   |
   | **Qwen2.5-14B-ReasonGenRM-sft** |   Text Match   | 85.89  | 91.48  |   77.74   | 88.65  |   85.71   |
 
-
 Conclusion:
 
 Reasoning quality and accuracy are model-dependent, with multiple valid reasoning chains ($R^*$) possible for a given user-assistant pair.
@@ -127,6 +132,7 @@ _TODO: It is necessary to supplement the reasoning experiments of Qwen2.5-72B-In
 ### DPO for Alignment
 
 DPO refines reasoning alignment by identifying:
+
 1. **Best Reasoning ($R_{\text{best}}$):**
 
 $$
@@ -144,7 +150,7 @@ $$
 The reasoning score is defined as:
 
 $$
-R_{\text{score}} = 
+R_{\text{score}} = \
 \begin{cases}
 \Big(2P(A \mid U, R) - 1\Big) \cdot P(R \mid U), & \text{if } P(A \mid U, R) \geq P(R \mid U) \\
 -P(R \mid U), & \text{otherwise.}
@@ -172,6 +178,7 @@ The following ablation study uses **Llama3.1-8B-ReasonGenRM-sft** as the pretrai
 | Random correct + Random incorrect   | Text Match    | 84.57  | 91.62  |   77.03   | 89.05  |   80.59   |
 
 Observation:
+
 1. The strategy "Correct influent + Incorrect fluent" exhibited severe non-stopping issues, contrary to conclusions in [related work](https://arxiv.org/pdf/2412.09413). Further investigation is needed to resolve this inconsistency.
 2. The correct approach is still to take the maximum and minimum $R_\text{score}$ (Correct fluent + Incorrect fluent).
 
