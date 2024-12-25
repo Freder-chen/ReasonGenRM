@@ -128,9 +128,15 @@ _TODO: It is necessary to supplement the reasoning experiments of Qwen2.5-72B-In
 
 DPO refines reasoning alignment by identifying:
 1. **Best Reasoning ($R_{\text{best}}$):**
-   $$ R_{\text{best}} = \arg\max_R P(A \mid U, R) \cdot P(R \mid U) $$
+
+   $$
+   R_{\text{best}} = \arg\max_R P(A \mid U, R) \cdot P(R \mid U)
+   $$
 2. **Worst Reasoning ($R_{\text{worst}}$):**
-   $$ R_{\text{worst}} = \arg\min_R \Big(-(1 - P(A \mid U, R)) \cdot P(R \mid U)\Big) $$
+
+   $$
+   R_{\text{worst}} = \arg\min_R \Big(-(1 - P(A \mid U, R)) \cdot P(R \mid U)\Big)
+   $$
 
 #### Refined Reward Function
 
@@ -150,8 +156,7 @@ $$
 
 In traditional DPO using RM, the maximum reward score sample is chosen as "Chosen" and the minimum reward score sample as "Reject"[[1](https://github.com/RLHFlow/RLHF-Reward-Modeling/blob/main/README.md)]. However, this approach needs reevaluation in the context of ReasonGenRM alignment.  
 
-If we only select the "best" $R$ and the "worst" $R$, we encounter issues stemming from the correlation between $R$'s quality and its generation probability by the model. As analyzed in [this paper](https://arxiv.org/pdf/2404.04626), the "best" $R$ often has minimal gradients (easy samples), while the "worst" $R$ has large gradients (hard samples). This imbalance in data sampling due to loss and reward design adversely affects training quality.
-Therefore, it is crucial to revisit the sampling strategy for Chosen and Reject to ensure balanced and effective training.
+If we focus solely on the "best" $R$ and the "worst" $R$, we encounter issues related to the correlation between $R$'s quality and its generation probability by the model. As analyzed in [this paper](https://arxiv.org/pdf/2404.04626), the "best" $R$ typically maintains relatively small gradients (representing easier samples), whereas the "worst" $R$ starts with smaller gradients but gradually transitions to larger ones (representing harder samples). This imbalance in gradient dynamics, coupled with biased data sampling influenced by loss and reward design, can negatively impact training quality. To address this, it is essential to reconsider the sampling strategy for Chosen and Reject to ensure balanced and effective training. 
 
 > **Note:** A more robust approach, such as leveraging PPO-based methods, could potentially address these issues. However, implementing PPO involves significant engineering overhead and is deferred for now. Future updates may include PPO integration.
 
