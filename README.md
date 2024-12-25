@@ -29,23 +29,24 @@ The task at hand is to evaluate the responses provided by two AI assistants to a
 
 ## Results on RewardBench
 
-The results of LLaMA on RewardBench are as follows:
+The results of LLaMA3.1 on RewardBench are as follows:
 
 |            Model             | Score | Chat  | Chat Hard | Safety | Reasoning |
 | :--------------------------: | :---: | :---: | :-------: | :----: | :-------: |
 |     LLaMA3.1-8B-Instruct     | 71.30 | 91.83 |   51.97   | 78.92  |   62.48   |
 |      LLaMA3.1-8B-GenRM       | 88.76 | 93.30 |   81.58   | 91.55  |   88.60   |
 | LLaMA3.1-8B-ReasonGenRM-sft  | 82.38 | 90.08 |   74.45   | 87.57  |   77.44   |
-<!-- | LLaMA3.1-8B-ReasonGenRM-dpo  | 85.80 | 92.88 |   76.43   | 87.77  |   86.11   | -->
+| LLaMA3.1-8B-ReasonGenRM-dpo  | 85.21 | 90.64 |   79.50   | 89.66  |   81.06   |
 
-The results of Qwen on RewardBench are as follows:
+The results of Qwen2.5 on RewardBench are as follows:
 
 |            Model             | Score | Chat  | Chat Hard | Safety | Reasoning |
 | :--------------------------: | :---: | :---: | :-------: | :----: | :-------: |
 |     Qwen2.5-7B-Instruct      | 79.78 | 96.65 |   60.09   | 81.69  |   80.67   |
 |       Qwen2.5-7B-GenRM       | 88.87 | 89.94 |   91.69   | 91.69  |   89.29   |
+| Qwen2.5-7B-ReasonGenRM-sft   | 83.70 | 91.34 |   71.27   | 88.51  |   83.70   |
+| Qwen2.5-7B-ReasonGenRM-dpo   | -     | -     |   -       | -      |   -       |
 |     Qwen2.5-14B-Instruct     | 82.28 | 95.39 |   67.32   | 84.73  |   81.66   |
 |       Qwen2.5-14B-GenRM      | 89.60 | 91.90 |   86.95   | 90.68  |   88.86   |
-
-<!-- |    Qwen2.5-7B-ReasonGenRM    | 79.98 | 90.64 |   65.68   | 80.12  |   83.50   | -->
-<!-- | Qwen2.5-14B-ReasonGenRM-wGen | 87.96 | 92.88 |   80.92   | 88.04  |   90.00   | -->
+| Qwen2.5-14B-ReasonGenRM-sft  | 85.89 | 91.48 |   77.74   | 88.65  |   85.71   |
+| Qwen2.5-14B-ReasonGenRM-dpo  | 88.41 | 93.16 |   81.69   | 89.86  |   88.93   |

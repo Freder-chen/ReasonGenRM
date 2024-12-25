@@ -33,15 +33,18 @@ def train(args):
     # configure tokenizer
     tokenizer = get_tokenizer(args.pretrain, model.model, "right", strategy, use_fast=not args.disable_fast_tokenizer)
     # IMPORTANT: Set REASON_CHAT_TEMPLATE in tokenizer
-    if 'qwen2' in args.pretrain.lower():
+    from transformers import AutoConfig
+    config = AutoConfig.from_pretrained(args.pretrain)
+    model_type = config.model_type
+    if 'qwen2' in model_type.lower():
         from src.utils.chat_templates import QWEN_REASON_CHAT_TEMPLATE
         tokenizer.chat_template = QWEN_REASON_CHAT_TEMPLATE
-    elif 'llama' in args.pretrain.lower():
+    elif 'llama' in model_type.lower():
         from src.utils.chat_templates import LLAMA_REASON_CHAT_TEMPLATE
         tokenizer.chat_template = LLAMA_REASON_CHAT_TEMPLATE
         tokenizer.pad_token = '<|finetune_right_pad_id|>'
     else:
-        raise NotImplementedError("Reason Template for this model not implemented yet.")
+        raise NotImplementedError(f"Reason Template for this model ({model_type}) not implemented yet.")
     strategy.print(model)
 
     # gradient_checkpointing
@@ -72,6 +75,7 @@ def train(args):
         strategy,
         pretrain_mode=args.pretrain_mode,
         input_template=args.input_template,
+        multiple_of=args.ring_attn_size,
     )
     eval_dataset = ReasonSFTDataset(
         eval_data,
@@ -80,6 +84,7 @@ def train(args):
         strategy,
         pretrain_mode=args.pretrain_mode,
         input_template=args.input_template,
+        multiple_of=args.ring_attn_size,
     )
 
     # prepare dataloader
@@ -182,6 +187,17 @@ if __name__ == "__main__":
     parser.add_argument("--l2", type=float, default=0, help="weight decay loss")
     parser.add_argument("--adam_betas", type=float, nargs=2, default=(0.9, 0.95), help="Betas for Adam optimizer")
 
+    # ring-attention
+    parser.add_argument("--ring_attn_size", type=int, default=1, help="Ring attention group size")
+    parser.add_argument(
+        "--ring_head_stride",
+        type=int,
+        default=1,
+        help="the number of heads to do ring attention each time. "
+        "It should be a divisor of the number of heads. "
+        "A larger value may results in faster training but will consume more memory.",
+    )
+
     # LoRA
     parser.add_argument("--load_in_4bit", action="store_true", default=False)
     parser.add_argument("--lora_rank", type=int, default=0)
@@ -224,12 +240,22 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.input_template and not "{}" in args.input_template:
+    if args.input_template and "{}" not in args.input_template:
         print("[Warning] {} not in args.input_template, set to None")
         args.input_template = None
+
+    if args.input_template and "\\n" in args.input_template:
+        print(
+            "[Warning] input_template contains \\n chracters instead of newline. "
+            "You likely want to pass $'\\n' in Bash or \"`n\" in PowerShell."
+        )
 
     if args.packing_samples and not args.flash_attn:
         print("[Warning] Please --flash_attn to accelerate when --packing_samples is enabled.")
         args.flash_attn = True
+
+    # TODO: [packing samples]
+    if args.ring_attn_size > 1:
+        assert args.packing_samples, "packing_samples must be enabled when using ring attention"
 
     train(args)

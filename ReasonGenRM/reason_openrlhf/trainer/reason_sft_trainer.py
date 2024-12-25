@@ -1,5 +1,4 @@
 import os
-import math
 from abc import ABC
 from tqdm import tqdm
 
@@ -14,32 +13,35 @@ from openrlhf.utils.distributed_sampler import DistributedSampler
 
 class ReasonSFTTrainer(ABC):
     """
-        Trainer to use while training reward model.
+    Trainer for supervised fine-tuning (SFT).
 
     Args:
-        model (torch.nn.Module): the model to train
-        strategy (Strategy): the strategy to use for training
-        optim(Optimizer): the optimizer to use for training
-        train_dataset (RewardDataset): the dataset to use for training
-        eval_dataset (RewardDataset): the dataset to use for evaluation
-        batch_size (int, defaults to 1): the batch size while training
-        max_epochs (int, defaults to 2): the number of epochs to train
-        optim_kwargs (dict, defaults to {'lr':1e-4}): the kwargs to use while initializing optimizer
+        model (torch.nn.Module): The model to be trained.
+        strategy (Strategy): The training strategy to be applied.
+        optim (Optimizer): The optimizer for model training.
+        train_dataloader (DataLoader): The dataloader for the training dataset.
+        eval_dataloader (DataLoader): The dataloader for the evaluation dataset.
+        scheduler (Scheduler): The learning rate scheduler to adjust training rates.
+        max_norm (float, defaults to 1): Maximum gradient norm for clipping to prevent exploding gradients.
+        pretrain_mode (bool, defaults to False): Flag to indicate if the trainer is in pre-training mode.
+        batch_size (int, defaults to 1): Batch size for training.
+        max_epochs (int, defaults to 2): The maximum number of training epochs.
+        tokenizer (Tokenizer, optional): The tokenizer for processing input data.
     """
 
     def __init__(
-            self,
-            model,
-            strategy,
-            optim: Optimizer,
-            train_dataloader,
-            eval_dataloader,
-            scheduler,
-            max_norm: float = 1,
-            pretrain_mode: bool = False,
-            batch_size: int = 1,
-            max_epochs: int = 2,
-            tokenizer=None,
+        self,
+        model,
+        strategy,
+        optim: Optimizer,
+        train_dataloader,
+        eval_dataloader,
+        scheduler,
+        max_norm: float = 1,
+        pretrain_mode: bool = False,
+        batch_size: int = 1,
+        max_epochs: int = 2,
+        tokenizer=None,
     ) -> None:
         super().__init__()
         self.strategy = strategy
@@ -55,7 +57,7 @@ class ReasonSFTTrainer(ABC):
         self.optimizer = optim
         self.args = strategy.args
 
-        self.loss_fn = GPTLMLoss()
+        self.loss_fn = GPTLMLoss(ring_attn_group=self.strategy.ring_attn_group)
 
         # Mixtral 8*7b
         self.aux_loss = self.args.aux_loss_coef > 1e-8
@@ -126,7 +128,7 @@ class ReasonSFTTrainer(ABC):
             # train
             self.model.train()
             loss_mean = 0
-            for prompts_id_lens, inputs, attention_masks, infos in self.train_dataloader:
+            for prompt_id_lens, inputs, attention_masks, infos in self.train_dataloader:
                 if self.packing_samples:
                     inputs = inputs.to(torch.cuda.current_device())
                     attention_mask = attention_masks.to(torch.cuda.current_device())
@@ -134,7 +136,20 @@ class ReasonSFTTrainer(ABC):
                     inputs = inputs.to(torch.cuda.current_device()).squeeze(1)
                     attention_mask = attention_masks.to(torch.cuda.current_device()).squeeze(1)
 
-                output = self.model(inputs, attention_mask=attention_mask, return_output=True)
+                if self.strategy.ring_attn_group is None:
+                    output = self.model(
+                        inputs,
+                        attention_mask=attention_mask,
+                        return_output=True
+                    )
+                else:
+                    output = self.model(
+                        inputs, 
+                        attention_mask=attention_mask, 
+                        return_output=True,
+                        ring_attn_group=self.strategy.ring_attn_group,
+                        packed_seq_lens=infos["input_length"],
+                    )
 
                 # loss function
                 labels = torch.where(
@@ -151,12 +166,12 @@ class ReasonSFTTrainer(ABC):
                 if not self.pretrain_mode:
                     if self.packing_samples:
                         index = 0
-                        for input_length, source_len, reason_suffix_ids_range in zip(infos["input_length"], prompts_id_lens, infos["reason_suffix_ids_range"]):
+                        for input_length, source_len, reason_suffix_ids_range in zip(infos["input_length"], prompt_id_lens, infos["reason_suffix_ids_range"]):
                             labels[0][index: index + source_len] = self.loss_fn.IGNORE_INDEX
                             labels[0][index + reason_suffix_ids_range[0]: index + reason_suffix_ids_range[1]] = self.loss_fn.IGNORE_INDEX
                             index += input_length
                     else:
-                        for label, source_len, reason_suffix_ids_range in zip(labels, prompts_id_lens, infos["reason_suffix_ids_range"]):
+                        for label, source_len, reason_suffix_ids_range in zip(labels, prompt_id_lens, infos["reason_suffix_ids_range"]):
                             label[:source_len] = self.loss_fn.IGNORE_INDEX
                             label[reason_suffix_ids_range[0]:reason_suffix_ids_range[1]] = self.loss_fn.IGNORE_INDEX
 
@@ -207,7 +222,9 @@ class ReasonSFTTrainer(ABC):
 
         # eval
         if global_step % args.eval_steps == 0:
-            self.evaluate(self.eval_dataloader, global_step)
+            # do eval when len(dataloader) > 0, avoid zero division in eval.
+            if len(self.eval_dataloader) > 0:
+                self.evaluate(self.eval_dataloader, global_step)
         # save ckpt
         # TODO: save best model on dev, use loss/perplexity on whole dev dataset as metric
         if global_step % args.save_steps == 0:
@@ -227,7 +244,7 @@ class ReasonSFTTrainer(ABC):
                 disable=not self.strategy.is_rank_0(),
             )
 
-            for prompts_id_lens, inputs, attention_masks, infos in eval_dataloader:
+            for prompt_id_lens, inputs, attention_masks, infos in eval_dataloader:
                 if self.packing_samples:
                     inputs = inputs.to(torch.cuda.current_device())
                     attention_mask = attention_masks.to(torch.cuda.current_device())
@@ -235,7 +252,16 @@ class ReasonSFTTrainer(ABC):
                     inputs = inputs.to(torch.cuda.current_device()).squeeze(1)
                     attention_mask = attention_masks.to(torch.cuda.current_device()).squeeze(1)
 
-                output = self.model(inputs, attention_mask=attention_mask, return_output=True)
+                if self.strategy.ring_attn_group is None:
+                    output = self.model(inputs, attention_mask=attention_mask, return_output=True)
+                else:
+                    output = self.model(
+                        inputs, 
+                        attention_mask=attention_mask, 
+                        return_output=True,
+                        ring_attn_group=self.strategy.ring_attn_group,
+                        packed_seq_lens=infos["input_length"],
+                    )
 
                 # loss function
                 labels = torch.where(
@@ -247,14 +273,14 @@ class ReasonSFTTrainer(ABC):
                 if not self.pretrain_mode:
                     if self.packing_samples:
                         index = 0
-                        for input_length, source_len, reason_suffix_ids_range in zip(infos["input_length"], prompts_id_lens, infos["reason_suffix_ids_range"]):
-                            labels[0][index: index + source_len] = self.loss_fn.IGNORE_INDEX
-                            labels[0][index + reason_suffix_ids_range[0]: index + reason_suffix_ids_range[1]] = self.loss_fn.IGNORE_INDEX
+                        for input_length, source_len, reason_suffix_ids_range in zip(infos["input_length"], prompt_id_lens, infos["reason_suffix_ids_range"]):
+                            labels[0][index : index + source_len] = self.loss_fn.IGNORE_INDEX
+                            labels[0][index + reason_suffix_ids_range[0] : index + reason_suffix_ids_range[1]] = self.loss_fn.IGNORE_INDEX
                             index += input_length
                     else:
-                        for label, source_len, reason_suffix_ids_range in zip(labels, prompts_id_lens, infos["reason_suffix_ids_range"]):
+                        for label, source_len, reason_suffix_ids_range in zip(labels, prompt_id_lens, infos["reason_suffix_ids_range"]):
                             label[:source_len] = self.loss_fn.IGNORE_INDEX
-                            label[reason_suffix_ids_range[0]:reason_suffix_ids_range[1]] = self.loss_fn.IGNORE_INDEX
+                            label[reason_suffix_ids_range[0] : reason_suffix_ids_range[1]] = self.loss_fn.IGNORE_INDEX
 
                 loss = self.loss_fn(output.logits, labels)
 
