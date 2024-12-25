@@ -23,6 +23,10 @@ This section presents the performance of different GenRM models on the RewardBen
 |   **Qwen2.5-7B-GenRM**       |   Text Match   | 88.87  | 89.94  |   91.69   | 91.69  |   89.29   |
 |   Qwen2.5-14B-Instruct       |   Text Match   | 82.28  | 95.39  |   67.32   | 84.73  |   81.66   |
 |   **Qwen2.5-14B-GenRM**      |   Text Match   | 89.60  | 91.90  |   86.95   | 90.68  |   88.86   |
+|   Qwen2.5-32B-Instruct       |   Text Match   | 85.81  | 96.65  |   71.82   | 87.84  |   86.91   |
+|   **Qwen2.5-32B-GenRM**      |   Text Match   | -      | -      |   -       | -      |   -       |
+|   Qwen2.5-72B-Instruct       |   Text Match   | 84.32  | 97.49  |   64.14   | 87.43  |   88.23   |
+|   **Qwen2.5-72B-GenRM**      |   Text Match   | -      | -      |   -       | -      |   -       |
 
 ## Usage
 

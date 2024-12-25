@@ -24,7 +24,7 @@ Please directly output your final verdict by strictly following this format: "[[
 
 [The Start of Assistant B's Answer]
 {response_b}
-[The End of Assistant B's Answer]
+[The End of Assistant B's Answer]\
 """
 
 
