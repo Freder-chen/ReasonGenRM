@@ -2,12 +2,11 @@
 
 **ReasonGenRM** is an advanced framework designed to improve the accuracy of reward evaluation by incorporating structured reasoning. Inspired by o1-style approaches, it extends the traditional `User + Assistant` paradigm into a `User + Reason + Assistant` structure. This enhancement encourages models to articulate intermediate reasoning (`Reason`) before providing the final response (`Assistant`), thereby improving interpretability and evaluation accuracy.
 
-
 ## Funny Toy
 
 Although primarily a reward model, ReasonGenRM demonstrates the potential to solve real-world problems. I am confident I have exclusively used reward data.
 
-![img](./asserts/web_demo.png)
+![web demo](./asserts/web_demo.png)
 
 To Run the Demo:
 

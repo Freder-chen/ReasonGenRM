@@ -1,8 +1,10 @@
-# ReasonGenRM
+# ReasonGenRM: $R^\star$ Achieves Post-Training Exclusively with SFT Datasets
 
 **ReasonGenRM** is an advanced framework for enhancing reward evaluation accuracy by integrating structured reasoning. Inspired by o1-style methodologies, it transitions the traditional `User + Assistant` paradigm into a more interpretable `User + Reason + Assistant` structure. This addition of an intermediate reasoning step improves interpretability and provides a robust foundation for accurate reward assessment.
 
 ## Core Concepts
+
+> If mistakes are the inevitable path to success, embrace them without fear.
 
 ### Reasoning-Driven Framework
 
@@ -64,10 +66,10 @@ The task at hand is to evaluate the responses provided by two AI assistants to a
 
 #### Preliminary
 
-Given the user input ($U$) and the assistant's response ($A$), the optimal reasoning step ($R^*$) is derived as:
+Given the user input ($U$) and the assistant's response ($A$), the optimal reasoning step ($R^\star$) is derived as:
 
 $$
-R^* = \arg\max_R P(R \mid U, A)
+R^\star = \arg\max_R P(R \mid U, A)
 $$
 
 Applying Bayes' theorem:
@@ -79,7 +81,7 @@ $$
 Since $P(A \mid U)$ is constant with respect to $R$, this simplifies to:
 
 $$
-R^* = \arg\max_R P(A \mid U, R) \cdot P(R \mid U)
+R^\star = \arg\max_R P(A \mid U, R) \cdot P(R \mid U)
 $$
 
 #### Experimental Insights
@@ -91,7 +93,7 @@ ReasonGenRM demonstrates its effectiveness through experiments on the **Skywork-
 
 ##### Exp. 1: Do Models Prefer Different Reasoning Chains?
 
-The following results were obtained by applying different models to the same reasoning data to compute $R^*$:
+The following results were obtained by applying different models to the same reasoning data to compute $R^\star$:
 
 | Model            | Unique $R$      | Repeated $R$ |
 | :--------------: | :-------------: | :----------: |
@@ -107,7 +109,7 @@ Observations:
 
 The following table summarizes results on **RewardBench**:
 
-- Setup 1: Using LLaMA3.1-8B-Instruct for $R^*$ Calculation
+- Setup 1: Using LLaMA3.1-8B-Instruct for $R^\star$ Calculation
 
   |            Model                |     Method     | Score  |  Chat  | Chat Hard | Safety | Reasoning |
   | :------------------------------:| :------------: | :----: | :----: | :-------: | :----: | :-------: |
@@ -115,7 +117,7 @@ The following table summarizes results on **RewardBench**:
   | **Qwen2.5-7B-ReasonGenRM-sft**  |   Text Match   | 83.00  | 91.06  |   71.60   | 87.77  |   81.59   |
   | **Qwen2.5-14B-ReasonGenRM-sft** |   Text Match   | 85.81  | 91.48  |   78.84   | 88.38  |   84.55   |
 
-- Setup 2: Using Qwen2.5-14B-Instruct for $R^*$ Calculation
+- Setup 2: Using Qwen2.5-14B-Instruct for $R^\star$ Calculation
 
   |            Model                |     Method     | Score  |  Chat  | Chat Hard | Safety | Reasoning |
   | :------------------------------:| :------------: | :----: | :----: | :-------: | :----: | :-------: |
@@ -125,7 +127,7 @@ The following table summarizes results on **RewardBench**:
 
 Conclusion:
 
-Reasoning quality and accuracy are model-dependent, with multiple valid reasoning chains ($R^*$) possible for a given user-assistant pair.
+Reasoning quality and accuracy are model-dependent, with multiple valid reasoning chains ($R^\star$) possible for a given user-assistant pair.
 
 _TODO: It is necessary to supplement the reasoning experiments of Qwen2.5-72B-Instruct to verify whether FT training requires in-domain data or higher quality data._
 
