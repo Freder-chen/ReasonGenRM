@@ -76,7 +76,10 @@ def stream_reason_and_answer(user_input, tokenizer, model, max_new_tokens=1024, 
     2) Generate final 'assistant' content.
     Each step is streamed to the frontend.
     """
-    messages = [{"role": "user", "content": user_input}]
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": user_input},
+    ]
 
     # 1) Reason phase
     reason_text = ""

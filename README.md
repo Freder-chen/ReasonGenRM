@@ -62,3 +62,7 @@ The results of Qwen2.5 on RewardBench are as follows:
 |       Qwen2.5-14B-GenRM      | 89.60 | 91.90 |   86.95   | 90.68  |   88.86   |
 | Qwen2.5-14B-ReasonGenRM-sft  | 85.89 | 91.48 |   77.74   | 88.65  |   85.71   |
 | Qwen2.5-14B-ReasonGenRM-dpo  | 88.41 | 93.16 |   81.69   | 89.86  |   88.93   |
+|   Qwen2.5-32B-Instruct       | 85.81 | 96.65 |   71.82   | 87.84  |   86.91   |
+|     Qwen2.5-32B-GenRM        | 92.35 | 91.20 |   89.91   | 92.03  |   96.25   |
+| Qwen2.5-32B-ReasonGenRM-sft  | 88.09 | 92.32 |   80.92   | 90.81  |   88.32   |
+| Qwen2.5-32B-ReasonGenRM-dpo  | 90.72 | 95.23 |   83.27   | 91.67  |   92.67   |
