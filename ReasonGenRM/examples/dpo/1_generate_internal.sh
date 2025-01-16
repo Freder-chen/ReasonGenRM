@@ -19,6 +19,8 @@ internal_generated_reason_dir="${base_dir}/internal_generated_reason"
 # vLLM Config
 NUM_PROCESSES=8 # NOTE: Modify according to the size of the model
 GPUS_PER_PROCESS=1 # NOTE: Modify according to the size of the model
+NUM_WORKER_PER_PROCESS=6 # NOTE: Modify according to the size of the model
+NUM_RESPONSE_PER_REQUEST=2 # NOTE: Modify according to the size of the model
 LOG_DIR="$WORK_DIR/logs"
 BASE_PORT=8009
 BASE_SEED=42
@@ -54,7 +56,7 @@ for ((i = 0; i < NUM_PROCESSES; i++)); do
     --gpu-memory-utilization 0.95 \
     --max-model-len 32768 \
     --max-num-batched-tokens 131072 \
-    --max-num-seqs 12 \
+    --max-num-seqs $(($NUM_WORKER_PER_PROCESS * $NUM_RESPONSE_PER_REQUEST)) \
     --disable-log-requests \
   > "${LOG_DIR}/vllm_internal_server${i}.log" 2>&1 &
 
@@ -83,11 +85,11 @@ do
     --save_filename "${internal_generated_reason_filename}" \
     --server_url "${SERVER_URLS[$i]}" \
     --model_name_or_path ${internal_model_name_or_path} \
-    --max_workers 6 \
+    --max_workers ${NUM_WORKER_PER_PROCESS} \
     --temperature 1.0 \
     --top_p 1.0 \
     --seed $(($BASE_SEED + $i)) \
-    --N 2 &
+    --N ${NUM_RESPONSE_PER_REQUEST} &
     
   SCRIPT_PIDS[$i]=$!
 done

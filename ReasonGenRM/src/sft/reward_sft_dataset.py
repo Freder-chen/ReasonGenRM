@@ -20,7 +20,7 @@ def parse_args():
     parser.add_argument('--save_filename', required=True, type=str, help='Filename to save results.')
     parser.add_argument('--num_workers', type=int, default=1, help='Number of workers.')
     parser.add_argument('--worker_index', type=int, default=0, help='Index of the current worker.')
-    parser.add_argument('--thresh', type=float, default=0.5, help='Threshold for saving results.')
+    parser.add_argument('--thresh', type=float, default=0.1, help='Threshold for saving results.')
     return parser.parse_args()
 
 
@@ -110,6 +110,8 @@ def split_dataset(dataset, num_workers, worker_index):
 def main():
     args = parse_args()
 
+    assert args.thresh > 0
+
     # Setup tokenizer and model
     tokenizer = load_custom_tokenizer(
         args.model_name_or_path,
@@ -122,7 +124,8 @@ def main():
         attn_implementation="flash_attention_2",
         torch_dtype=torch.bfloat16,
         trust_remote_code=True
-    ).to("cuda").eval()
+        device_map="auto",
+    ).eval()
 
     # Load the dataset
     all_datasets = []
@@ -165,23 +168,17 @@ def main():
     for example in tqdm(dataset, desc="Processing reward examples"):
         # Compute scores for the current example
         scores = process_data_item(model, tokenizer, example)
-        # NOTE: The condition `x['p2r'] > x['pr2a']` generally falls into two scenarios:
-        # 1. The reasoning process results in incorrect answers.
-        # 2. Overfitting occurs, often manifested as redundant or repetitive information.
-        reset_incorrect_assistant_score = lambda x: x['pr2a'] * (x['p2r'] < x['pr2a']) * (x['pr2a'] > args.thresh)
-        scores = [{'p2r': x['p2r'], 'pr2a': reset_incorrect_assistant_score(x)} for x in scores]
 
         # Find the indices of the maximum score based on custom scoring logic
-        max_score_index = scores.index(max(scores, key=lambda x: x['p2r'] * x['pr2a']))
+        compute_custom_score = lambda x: x['p2r'] * (2 * x['pr2a'] - 1)
+        adjusted_scores = [compute_custom_score(x) for x in scores]
+        max_score_index = adjusted_scores.index(max(adjusted_scores))
 
         # Log the maximum score
         max_score = scores[max_score_index]
         print(f"Score Count: {len(scores)}, Max Score: {max_score}", flush=True)
 
-        # Evaluate if the scores meet the specified threshold criteria:
-        # 1. Exclude responses likely to result in incorrect answers. - max_score['pr2a'] > 0
-        # 2. Exclude responses that are inherently difficult to generate. - max_score['p2r'] > 0.2
-        if args.thresh is None or (max_score['pr2a'] > 0 and max_score['p2r'] > 0.2):
+        if adjusted_scores[max_score_index] > args.thresh:
             data = {
                 'prompt': example['prompt'],
                 'reason': example['reasons'][max_score_index],

@@ -15,22 +15,25 @@ while IFS= read -r file; do
 done < <(find "${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2/dpo/internal_generated_reason" -type f -name "*.jsonl")
 
 OUTPUT_DIR="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2/dpo/Llama3.1-8B-16sample"
-NUM_PROCESSES=8
-THRESH=0.7
+NUM_PROCESSES=8 # NOTE: Modify according to the size of the model
+GPUS_PER_PROCESS=1 # NOTE: Modify according to the size of the model
+THRESH=0.1
 
 # Create necessary directories
 mkdir -p "${OUTPUT_DIR}/tmp_reward" "${OUTPUT_DIR}/logs"
 
 # Function to start a process
 start_process() {
-    local gpu_id=$1
+    local start_gpu=$(($1 * $GPUS_PER_PROCESS))
+    local end_gpu=$(($start_gpu + $GPUS_PER_PROCESS - 1))
+    local devices=$(seq -s, $start_gpu $end_gpu)
+    
     local worker_index=$2
     local save_filename="${OUTPUT_DIR}/tmp_reward/reward_${worker_index}.jsonl"
     local log_filename="${OUTPUT_DIR}/logs/process_${worker_index}.log"
 
-    echo "Starting process ${worker_index} on GPU ${gpu_id}..."
-
-    CUDA_VISIBLE_DEVICES=${gpu_id} python "${WORK_DIR}/src/dpo/reward_dpo_dataset.py" \
+    echo "Starting process ${worker_index} on GPU ${devices}..."
+    CUDA_VISIBLE_DEVICES=${devices} python "${WORK_DIR}/src/dpo/reward_dpo_dataset.py" \
         --model_name_or_path "${MODEL_NAME_OR_PATH}" \
         --dataset_dir "${DATASET_DIR[@]}" \
         --save_filename "${save_filename}" \
