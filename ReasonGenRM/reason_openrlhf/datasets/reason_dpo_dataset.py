@@ -122,11 +122,19 @@ class ReasonDPODataset(Dataset):
             )
             return token["attention_mask"].int().sum().item()
 
+        # Non-Mask Assistant
+        # prompt_ids_len = get_token_length(prompt)
+        # chosen_reason_ids_len = prompt_ids_len + get_token_length(chosen["reason"])
+        # chosen_reason_suffix_ids_len = chosen_reason_ids_len + get_token_length(chosen["reason_suffix"])
+        # rejected_reason_ids_len = prompt_ids_len + get_token_length(reject["reason"])
+        # rejected_reason_suffix_ids_len = rejected_reason_ids_len + get_token_length(reject["reason_suffix"])
+
+        # Mask Assistant
         prompt_ids_len = get_token_length(prompt)
         chosen_reason_ids_len = prompt_ids_len + get_token_length(chosen["reason"])
-        chosen_reason_suffix_ids_len = chosen_reason_ids_len + get_token_length(chosen["reason_suffix"])
+        chosen_reason_suffix_ids_len = chosen_reason_ids_len + get_token_length(chosen["reason_suffix"]) + get_token_length(chosen["response"])
         rejected_reason_ids_len = prompt_ids_len + get_token_length(reject["reason"])
-        rejected_reason_suffix_ids_len = rejected_reason_ids_len + get_token_length(reject["reason_suffix"])
+        rejected_reason_suffix_ids_len = rejected_reason_ids_len + get_token_length(reject["reason_suffix"]) + get_token_length(chosen["response"])
 
         # Filter the sample whose length is greater than max_length (64 for answer length)
         if prompt_ids_len >= self.max_length - 64:

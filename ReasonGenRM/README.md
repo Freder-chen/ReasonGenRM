@@ -192,10 +192,12 @@ Observation:
 | **Qwen2.5-7B-ReasonGenRM-sft**  |   Text Match   | 83.70  | 91.34  |   71.27   | 88.51  |   83.70   |
 | **Qwen2.5-14B-ReasonGenRM-sft** |   Text Match   | 85.89  | 91.48  |   77.74   | 88.65  |   85.71   |
 | **Qwen2.5-32B-ReasonGenRM-sft** |   Text Match   | 88.09  | 92.32  |   80.92   | 90.81  |   88.32   |
+| **Qwen2.5-72B-ReasonGenRM-sft** |   Text Match   | 88.55  | 93.42  |   80.70   | 90.81  |   89.27   |
 
 |            Model                |     Method     | Score  |  Chat  | Chat Hard | Safety | Reasoning |
 | :------------------------------:| :------------: | :----: | :----: | :-------: | :----: | :-------: |
 | **LLaMA3.1-8B-ReasonGenRM-dpo** |   Text Match   | 85.21  | 90.64  |   79.50   | 89.66  |   81.06   |
 | **Qwen2.5-7B-ReasonGenRM-dpo**  |   Text Match   | 86.88  | 92.46  |   78.40   | 89.59  |   87.07   |
 | **Qwen2.5-14B-ReasonGenRM-dpo** |   Text Match   | 88.41  | 93.16  |   81.69   | 89.86  |   88.93   |
-| **Qwen2.5-32B-ReasonGenRM-dpo** |   Text Match   | -      | -      |   -       | -      |   -       |
+| **Qwen2.5-32B-ReasonGenRM-dpo** |   Text Match   | 90.72  | 95.23  |   83.27   | 91.67  |   92.67   |
+| **Qwen2.5-72B-ReasonGenRM-dpo** |   Text Match   | -      | -      |   -       | -      |   -       |
