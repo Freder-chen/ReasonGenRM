@@ -12,6 +12,10 @@ MODEL_PATH="Qwen/QwQ-32B"
 DATASET_PATH="${WORK_DIR}/data/Skywork-Reward-Preference-80K-v0.2/sft/QwQ-zero/reward.jsonl"
 SAVE_PATH="${WORK_DIR}/exp/ReasonGenRM-QwQ-32B/sft"
 
+# NOTE:
+# pip install deepspeed==0.15.0
+# pip install ring_flash_attn
+
 set -x
 
 read -r -d '' training_commands <<EOF
@@ -30,7 +34,10 @@ reason_openrlhf.cli.train_reason_sft \
    --zero_stage 3 \
    --max_epochs 2 \
    --bf16 \
+   --adam_offload \
    --flash_attn \
+   --ring_attn_size 2 \
+   --ring_head_stride 2 \
    --learning_rate 5e-6 \
    --gradient_checkpointing \
    --packing_samples \
