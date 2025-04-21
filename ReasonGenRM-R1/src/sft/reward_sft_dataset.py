@@ -1,63 +1,98 @@
 import os
+import re
 import json
 import torch
 import argparse
 from tqdm import tqdm
 from collections import defaultdict
 from datasets import load_dataset, concatenate_datasets, Dataset
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.utils import (
-    load_custom_tokenizer,
-    compute_conditional_probabilities
-)
+from src.utils import compute_conditional_probabilities
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Process prompts and compute reward scores.')
     parser.add_argument('--model_name_or_path', type=str, default='Qwen/Qwen2.5-7B-Instruct', help='Name or path of the model to use.')
-    parser.add_argument('--dataset_dir', type=str, nargs='+', required=True, help='Paths to dataset files or directories.')
+    parser.add_argument('--dataset_list', type=str, nargs='+', required=True, help='Paths to dataset files or directories.')
     parser.add_argument('--save_filename', required=True, type=str, help='Filename to save results.')
     parser.add_argument('--num_workers', type=int, default=1, help='Number of workers.')
     parser.add_argument('--worker_index', type=int, default=0, help='Index of the current worker.')
-    parser.add_argument('--thresh', type=float, default=0.1, help='Threshold for saving results.')
     return parser.parse_args()
 
 
-def process_data_item(model, tokenizer, item):
-    """
-    Process a dataset item by calculating scores for each reason.
-    """
+def normalize_assistant(response):
+    think_matches = list(re.finditer(r"(.*?)</think>", response, re.DOTALL))
+    if not think_matches:
+        return None
+
+    last_think_end = think_matches[-1].end()
+    think_str = response[:last_think_end]
+    answer_str = response[last_think_end:]
+
+    found = re.findall(r"\[\[(A|B)\]\]", answer_str)
+    if not found:
+        return None
+
+    norm_response = think_str + "\n\n" + f"[[{found[-1]}]]"
+    return norm_response
+
+
+def extract_verdict(response, answer):
+    assert answer in ["A", "B"], f"Invalid answer provided {answer}."
+
+    think_matches = list(re.finditer(r"(.*?)</think>", response, re.DOTALL))
+    if not think_matches:
+        return 0.0
+
+    last_think_end = think_matches[-1].end()
+    answer_str = response[last_think_end:]
+
+    found = re.findall(r'\[\[(A|B)\]\]', answer_str)
+    if not found:
+        return 0.0
+
+    return 1.0 if found[-1] == answer else -1.0
+
+
+def process_one_sample(model, tokenizer, sample):
     scores = []
-    for reason in item['reasons']:
-        message = [
-            {'role': 'user', 'content': item['prompt']},
-            {'role': 'reason', 'content': reason},
-            {'role': 'assistant', 'content': item['target']},
-        ]
-        p_p2r, p_pr2a = compute_conditional_probabilities(model, tokenizer, message)
-        scores.append({'p2r': p_p2r, 'pr2a': p_pr2a})
+    for response in sample['responses']:
+        norm_response = normalize_assistant(response)
+        if norm_response:
+            assert sample['target'] in ["[[A]]", "[[B]]"], f"Invalid answer provided {sample['target']}."
+            answer = {"[[A]]": "A", "[[B]]": "B"}[sample['target']]
+            correct = extract_verdict(norm_response, answer=answer)
+
+            message = [
+                {'role': 'user', 'content': sample['prompt']},
+                {'role': 'assistant', 'content': norm_response},
+            ]
+            p_p2r, p_pr2a = compute_conditional_probabilities(model, tokenizer, message)
+            scores.append({'p2r': p_p2r, 'pr2a': p_pr2a, "correct": correct})
+        else:
+            scores.append(None)
     return scores
 
 
 def merge_dataset_by_prompt(dataset):
     """
-    Merge dataset items by 'prompt', combining reasons and ensuring consistent targets.
+    Merge dataset items by 'prompt', combining responses and ensuring consistent targets.
     """
-    grouped_data = defaultdict(lambda: {"target": [], "reasons": []})
+    grouped_data = defaultdict(lambda: {"target": [], "responses": []})
     for item in tqdm(dataset, desc='Group dataset'):
         prompt = item["prompt"]
         grouped_data[prompt]["target"].append(item["target"])
-        grouped_data[prompt]["reasons"].append(item["reasons"])
+        grouped_data[prompt]["responses"].append(item["responses"])
 
     merged_dataset = []
     for prompt, group in tqdm(grouped_data.items(), desc="Merge dataset"):
         if len(set(group["target"])) == 1:
             target = group["target"][0]
-            reasons = [item for sublist in group["reasons"] for item in sublist]
+            responses = [item for sublist in group["responses"] for item in sublist]
             merged_dataset.append({
                 "prompt": prompt,
-                "reasons": reasons,
+                "responses": responses,
                 "target": target
             })
         else:
@@ -110,14 +145,11 @@ def split_dataset(dataset, num_workers, worker_index):
 def main():
     args = parse_args()
 
-    assert args.thresh > 0
-
     # Setup tokenizer and model
-    tokenizer = load_custom_tokenizer(
+    tokenizer = AutoTokenizer.from_pretrained(
         args.model_name_or_path,
         trust_remote_code=True,
-        use_fast=True,
-        use_reason_template=True
+        use_fast=True
     )
     model = AutoModelForCausalLM.from_pretrained(
         args.model_name_or_path,
@@ -129,26 +161,20 @@ def main():
 
     # Load the dataset
     all_datasets = []
-    for dataset_path in args.dataset_dir:
+    for dataset_path in args.dataset_list:
         if dataset_path.endswith(('.json', '.jsonl')):
             dataset = load_dataset('json', data_files=dataset_path, split='train')
         else:
             dataset = load_dataset(dataset_path, split='train')
 
-        # Rename columns if necessary
-        if 'user' in dataset.column_names:
-            dataset = dataset.rename_column("user", "prompt")
-        if 'response' in dataset.column_names:
-            dataset = dataset.rename_column("response", "target")
-        
         all_datasets.append(dataset)
-    
+
     dataset = concatenate_datasets(all_datasets)
     dataset = merge_dataset_by_prompt(dataset)
 
     # Ensure necessary columns are present
     assert 'prompt' in dataset.column_names, "Dataset must contain a 'prompt' column"
-    assert 'reasons' in dataset.column_names, "Dataset must contain a 'reasons' column"
+    assert 'responses' in dataset.column_names, "Dataset must contain a 'responses' column"
     assert 'target' in dataset.column_names, "Dataset must contain a 'target' column"
 
     # Split the dataset among workers
@@ -164,30 +190,36 @@ def main():
         checkpoint_prompts = set(checkpoint_dataset['prompt'])
         dataset = dataset.filter(lambda x: x['prompt'] not in checkpoint_prompts)
 
-    # Iterate over the dataset and process each example
-    for example in tqdm(dataset, desc="Processing reward examples"):
-        # Compute scores for the current example
-        scores = process_data_item(model, tokenizer, example)
+    # Iterate over the dataset and process each sample
+    for sample in tqdm(dataset, desc="Processing reward samples"):
+        # Compute scores for the current sample
+        scores = process_one_sample(model, tokenizer, sample)
 
-        # Find the indices of the maximum score based on custom scoring logic
-        compute_custom_score = lambda x: x['p2r'] * (2 * x['pr2a'] - 1)
-        adjusted_scores = [compute_custom_score(x) for x in scores]
-        max_score_index = adjusted_scores.index(max(adjusted_scores))
+        filtered_data = [
+            {'response': response, **score} for response, score in zip(sample['responses'], scores) if score is not None and score['correct'] > 0
+        ]
+        if len(filtered_data) == 0:
+            continue
+
+        max_score_data = max(filtered_data, key=lambda x: x['p2r'] * x['pr2a'] * x['correct'])
 
         # Log the maximum score
-        max_score = scores[max_score_index]
-        print(f"Score Count: {len(scores)}, Max Score: {max_score}", flush=True)
+        max_score = {
+            'p2r': max_score_data['p2r'],
+            'pr2a': max_score_data['pr2a'],
+            'correct': max_score_data['correct']
+        }
+        print(f"Score Count: {len(sample['responses'])}, Max Score: {max_score}", flush=True)
 
-        if adjusted_scores[max_score_index] > args.thresh:
-            data = {
-                'prompt': example['prompt'],
-                'reason': example['reasons'][max_score_index],
-                'assistant': example['target']
-            }
-            # Append the data pair to the specified file
-            with open(args.save_filename, 'a', encoding='utf-8') as file:
-                json.dump(data, file, ensure_ascii=False)
-                file.write('\n')
+
+        data = {
+            'prompt': sample['prompt'],
+            'response': max_score_data['response'],
+        }
+        # Append the data pair to the specified file
+        with open(args.save_filename, 'a', encoding='utf-8') as file:
+            json.dump(data, file, ensure_ascii=False)
+            file.write('\n')
 
 
 if __name__ == '__main__':

@@ -1,4 +1,6 @@
-# ReasonGenRM
+# ReasonGenRM: Enhancing Generative Reward Models through Large Reasoning Models
+
+> Notion blog: [ReasonGenRM: Enhancing Generative Reward Models through Large Reasoning Models](https://www.notion.so/ReasonGenRM-Enhancing-Generative-Reward-Models-through-Large-Reasoning-Models-1d89a508e15880e4b953f140965dc167#1d89a508e158811e9b62fd3fc1d39362)
 
 **ReasonGenRM** is an advanced framework designed to improve the accuracy of reward evaluation by incorporating structured reasoning. Inspired by o1-style approaches, it extends the traditional `User + Assistant` paradigm into a `User + Reason + Assistant` structure. This enhancement encourages models to articulate intermediate reasoning (`Reason`) before providing the final response (`Assistant`), thereby improving interpretability and evaluation accuracy.
 

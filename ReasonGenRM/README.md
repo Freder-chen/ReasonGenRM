@@ -69,18 +69,6 @@ The task at hand is to evaluate the responses provided by two AI assistants to a
 Given the user input ($U$) and the assistant's response ($A$), the optimal reasoning step ($R^\star$) is derived as:
 
 $$
-R^\star = \arg\max_R P(R \mid U, A)
-$$
-
-Applying Bayes' theorem:
-
-$$
-P(R \mid U, A) = \frac{P(A \mid U, R) \cdot P(R \mid U)}{P(A \mid U)}
-$$
-
-Since $P(A \mid U)$ is constant with respect to $R$, this simplifies to:
-
-$$
 R^\star = \arg\max_R P(A \mid U, R) \cdot P(R \mid U)
 $$
 
@@ -145,18 +133,6 @@ $$
 
 $$
 R_{\text{worst}} = \arg\min_R \Big(-(1 - P(A \mid U, R)) \cdot P(R \mid U)\Big)
-$$
-
-#### Refined Reward Function
-
-The reasoning score is defined as:
-
-$$
-R_{\text{score}} = \
-\begin{cases}
-\Big(2P(A \mid U, R) - 1\Big) \cdot P(R \mid U), & \text{if } P(A \mid U, R) \geq P(R \mid U) \\
--P(R \mid U), & \text{otherwise.}
-\end{cases}
 $$
 
 #### Experimental Evaluation of DPO

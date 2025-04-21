@@ -23,7 +23,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def process_data_item(item, args):
+def process_data_item(item):
     question = history_template.render(messages=item['chosen'][:-1]).strip()
     chosen_response = item['chosen'][-1]['content'].strip()
     rejected_response = item['rejected'][-1]['content'].strip()
@@ -64,7 +64,6 @@ def main():
 
     # Ensure the directory exists
     os.makedirs(os.path.dirname(os.path.abspath(args.save_filename)), exist_ok=True)
-
     for item in tqdm(valid_dataset, desc="Prepare prompt"):
         result = process_data_item(item, args)
         if result:
